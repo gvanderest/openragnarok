@@ -87,15 +87,23 @@ pub struct Grf<'a> {
     // pub file_table: GrfCompressedFileTable,
 }
 
+#[derive(Debug)]
+pub enum GrfError {
+    EncryptionUnsupported,
+    InvalidSignature,
+    VersionUnsupported(u32),
+}
+
 impl<'a> Grf<'a> {
-    pub fn from_reader(reader: &'a mut dyn Read) -> Self {
-        let header = Grf::create_header_from_reader(reader);
+    pub fn from_reader(reader: &'a mut dyn Read) -> Result<Self, GrfError> {
+        let header = Grf::create_header_from_reader(reader)?;
+
         // let file_table = GrfCompressedFileTable::create_from_header(reader, header);
-        Grf {
+        Ok(Grf {
             reader: Box::new(reader),
             header,
             // file_table,
-        }
+        })
     }
 
     fn read_next_u32(reader: &mut dyn Read) -> u32 {
@@ -104,20 +112,75 @@ impl<'a> Grf<'a> {
         u32::from_le_bytes(buffer)
     }
 
-    fn create_header_from_reader(reader: &mut dyn Read) -> GrfHeader {
+    fn create_header_from_reader(reader: &mut dyn Read) -> Result<GrfHeader, GrfError> {
         let mut header = GrfHeader::default();
 
-        // Magic string
-        let mut raw_magic: [u8; 16] = [0; 16];
-        reader.read_exact(&mut raw_magic).unwrap();
+        // Magic string signature
+        let mut raw_signature: [u8; 16] = [0; 16];
+        reader.read_exact(&mut raw_signature).unwrap();
+        let signature = String::from_utf8_lossy(&raw_signature).to_string();
+        if signature != "Master of Magic\0" {
+            return Err(GrfError::InvalidSignature);
+        }
+        header.signature = signature;
 
         reader.read_exact(&mut header.encryption).unwrap();
+        if header.encryption.iter().any(|&byte| byte != 0) {
+            return Err(GrfError::EncryptionUnsupported);
+        }
 
         header.offset = Grf::read_next_u32(reader);
         header.seed = Grf::read_next_u32(reader);
         header.file_count = Grf::read_next_u32(reader);
-        header.version = Grf::read_next_u32(reader);
 
-        header
+        header.version = Grf::read_next_u32(reader);
+        // FIXME: Handle other versions, additional known ones are 0x102 and 0x103
+        if header.version != 0x200 {
+            return Err(GrfError::VersionUnsupported(header.version));
+        }
+
+        Ok(header)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+
+    use super::*;
+
+    #[test]
+    fn handle_invalid_signature() {
+        let mut reader = Cursor::new(b"Invalid signature\0");
+        let result = Grf::from_reader(&mut reader);
+        assert!(matches!(result, Err(GrfError::InvalidSignature)));
+    }
+
+    #[test]
+    fn handle_unsupported_encryption() {
+        let mut reader = Cursor::new(
+            b"\
+            Master of Magic\0\
+            \0\0\0\0\0\0\0\0\0\0\0\0\0x1\
+            ",
+        );
+        let result = Grf::from_reader(&mut reader);
+        assert!(matches!(result, Err(GrfError::EncryptionUnsupported)));
+    }
+
+    #[test]
+    fn handle_unsupported_version() {
+        let mut reader = Cursor::new(
+            b"\
+            Master of Magic\0\
+            \0\0\0\0\0\0\0\0\0\0\0\0\0\0\
+            \0\0\0\0\
+            \0\0\0\0\
+            \0\0\0\0\
+            \0\0\0\0x100\
+            ",
+        );
+        let result = Grf::from_reader(&mut reader);
+        assert!(matches!(result, Err(GrfError::VersionUnsupported(0x000))));
     }
 }
