@@ -95,7 +95,7 @@ impl<'a> Grf<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+mod grf_header_tests {
     use std::io::Cursor;
 
     use super::*;
@@ -112,7 +112,7 @@ mod tests {
             \x00\x02\x00\x00\
             ",
         );
-        let result = Grf::from_reader(&mut reader);
+        let result = GrfHeader::from_reader(&mut reader);
         assert!(matches!(result, Err(GrfError::InvalidSignature)));
     }
 
@@ -128,7 +128,7 @@ mod tests {
             \x00\x01\x00\x00\
             ",
         );
-        let result = Grf::from_reader(&mut reader);
+        let result = GrfHeader::from_reader(&mut reader);
         assert!(matches!(result, Err(GrfError::EncryptionUnsupported)));
     }
 
@@ -144,7 +144,7 @@ mod tests {
             \x00\x00\x00\x00\
             ",
         );
-        let result = Grf::from_reader(&mut reader);
+        let result = GrfHeader::from_reader(&mut reader);
         assert!(matches!(result, Err(GrfError::VersionUnsupported(0x000))));
     }
 
@@ -160,7 +160,7 @@ mod tests {
             \x00\x02\x00\x00\
             ",
         );
-        let result = Grf::from_reader(&mut reader).unwrap();
-        assert!(result.header.version == 0x200);
+        let result = GrfHeader::from_reader(&mut reader).unwrap();
+        assert!(result.version == 0x200);
     }
 }
