@@ -1,10 +1,11 @@
-use grf::{GRF_HEADER_SIZE, Grf};
+use grf::{GRF_HEADER_SIZE, archive::Archive};
 
 fn main() {
     println!("Opening GRF file...");
     let mut reader = std::fs::File::open("./data.grf").unwrap();
-    let grf = Grf::from_reader(&mut reader).unwrap();
+    let grf = Archive::from_reader(&mut reader).unwrap();
     println!("GRF file opened!");
     println!("Size of header: {}", GRF_HEADER_SIZE);
     println!("Header: {:?}", grf.header);
+    println!("File Table: {:?}", grf.file_table);
 }
