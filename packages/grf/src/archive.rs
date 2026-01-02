@@ -1,5 +1,6 @@
 use std::io::{Read, Seek};
 
+use crate::GRF_HEADER_SIZE;
 use crate::error;
 use crate::file_table;
 use crate::header;
@@ -16,8 +17,11 @@ impl<'a> Archive<'a> {
         T: Read + Seek,
     {
         let header = header::Header::from_reader(reader)?;
-        let file_table =
-            file_table::CompressedFileTable::from_reader_with_offset(reader, header.offset)?;
+        let file_table = file_table::CompressedFileTable::from_reader_with_offset_and_file_count(
+            reader,
+            GRF_HEADER_SIZE + header.offset,
+            1, // header.file_count,
+        )?;
         Ok(Archive {
             reader: Box::new(reader),
             header,
