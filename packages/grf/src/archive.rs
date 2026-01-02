@@ -1,3 +1,4 @@
+use std::io::SeekFrom;
 use std::io::{Read, Seek};
 
 use crate::GRF_HEADER_SIZE;
@@ -16,12 +17,20 @@ impl<'a> Archive<'a> {
     where
         T: Read + Seek,
     {
+        // Read in header
         let header = header::Header::from_reader(reader)?;
-        let file_table = file_table::CompressedFileTable::from_reader_with_offset_and_file_count(
+
+        // Move to compressed file table
+        reader
+            .seek(SeekFrom::Start(
+                GRF_HEADER_SIZE as u64 + header.offset as u64 + 8,
+            ))
+            .unwrap();
+        let file_table = file_table::CompressedFileTable::from_reader_with_file_count(
             reader,
-            GRF_HEADER_SIZE + header.offset,
-            1, // header.file_count,
+            header.file_count,
         )?;
+
         Ok(Archive {
             reader: Box::new(reader),
             header,

@@ -3,6 +3,8 @@ use std::io::{Read, Seek};
 
 use crate::error;
 
+static FILE_COUNT_ADJUSTMENT: u32 = 7;
+
 // Reference: https://z0q.neocities.org/ragnarok-online-formats/grf/
 #[binrw]
 #[br(little, magic = b"Master of Magic\0")]
@@ -22,15 +24,23 @@ impl Header {
     {
         let header = Header::read(reader);
         match header {
-            Ok(header) => {
+            Ok(mut header) => {
                 // Validate encryption
                 if header.encryption != [0; 14] {
                     return Err(error::Error::EncryptionUnsupported);
                 }
 
                 // Validate version
-                if header.version != 0x200 {
-                    return Err(error::Error::VersionUnsupported(header.version));
+                match header.version {
+                    0x200 => {
+                        header.file_count -= FILE_COUNT_ADJUSTMENT;
+                    }
+                    0x102 | 0x103 => {
+                        header.file_count = header.file_count - header.seed - FILE_COUNT_ADJUSTMENT;
+                    }
+                    _ => {
+                        return Err(error::Error::VersionUnsupported(header.version));
+                    }
                 }
 
                 // Everything is good, valid header
@@ -61,7 +71,7 @@ mod tests {
             \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
             \x00\x00\x00\x00\
             \x00\x00\x00\x00\
-            \x00\x00\x00\x00\
+            \x07\x00\x00\x00\
             \x00\x02\x00\x00\
             ",
         );
@@ -77,7 +87,7 @@ mod tests {
             \x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
             \x00\x00\x00\x00\
             \x00\x00\x00\x00\
-            \x00\x00\x00\x00\
+            \x07\x00\x00\x00\
             \x00\x01\x00\x00\
             ",
         );
@@ -93,7 +103,7 @@ mod tests {
             \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
             \x00\x00\x00\x00\
             \x00\x00\x00\x00\
-            \x00\x00\x00\x00\
+            \x07\x00\x00\x00\
             \x00\x00\x00\x00\
             ",
         );
@@ -112,7 +122,7 @@ mod tests {
             \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\
             \x00\x00\x00\x00\
             \x00\x00\x00\x00\
-            \x00\x00\x00\x00\
+            \x07\x00\x00\x00\
             \x00\x02\x00\x00\
             ",
         );

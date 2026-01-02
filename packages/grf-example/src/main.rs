@@ -7,5 +7,9 @@ fn main() {
     println!("GRF file opened!");
     println!("Size of header: {}", GRF_HEADER_SIZE);
     println!("Header: {:?}", grf.header);
-    println!("File Table: {:?}", grf.file_table);
+    println!("File count: {:?}", grf.file_table.files.len());
+
+    for file in grf.file_table.files {
+        println!("File: {:?}", file.filename);
+    }
 }
