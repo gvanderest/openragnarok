@@ -20,7 +20,8 @@ impl<'a> Archive<'a> {
         // Read in header
         let header = header::Header::from_reader(reader)?;
 
-        // Move to compressed file table
+        // Move to compressed file table, assume version 0x200 only for now
+        // FIXME: Handle 0x1XX versions too
         reader
             .seek(SeekFrom::Start(
                 GRF_HEADER_SIZE as u64 + header.offset as u64 + 8,
